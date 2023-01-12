@@ -8,7 +8,7 @@ Created on Fri Dec  2 14:31:17 2022
 
 #process and clean data using numpy, pandas
 #build model 
-#visualize using matplotlib/seaborn
+#visualize using matplotlib
 
 import numpy as np
 import pandas as pd
@@ -51,7 +51,6 @@ user.shape
 #mean,mean,min max for each column
 user.describe() 
 
-
 #clean the data
 
 #how many unique users? 62593
@@ -87,7 +86,8 @@ user_clean['height'].describe()
 
 #to remove the potential for any data entry errors I will restrict height 
 #to be between filter 4-7.5 feet 
-user_clean = user_clean[user_clean['height'].isin(range(120,228))]
+user_clean = user_clean[user_clean['height'] > 120]
+user_clean = user_clean[user_clean['height'] < 228]
 #convert from centimeters to meters
 user_clean['height'] = user_clean['height']/100
 
@@ -100,11 +100,10 @@ user_clean['bmi'] = user_clean['weight']/(user_clean['height']**2)
 user_clean['bmi'].describe()
 plt.hist(user_clean['bmi'])
 #some BMI's appear to be unlikely, so I will filter BMIs to be between 15-40
-user_clean = user_clean[user_clean['bmi'].isin(range(15,40))]
+user_clean = user_clean[user_clean['bmi'] > 15]
+user_clean = user_clean[user_clean['bmi'] < 40]
 user_clean['bmi'].describe()
 plt.hist(user_clean['bmi'])
-
-#define years of climbing experience
 
 
 #compare number of boulders and sport climbs
@@ -115,9 +114,23 @@ ascents.groupby(['climb_type']).size()
 #filter to only include bouldering
 ascents_bouldering = ascents.loc[ascents['climb_type'] == 1]
 
+#merge users and ascents
+user_ascent = pd.merge(user_clean, ascents_bouldering, 
+                       left_on='id', right_on='user_id', how='inner', 
+                       suffixes=("_user", "_ascents"))
 
+user_ascent.dtypes
+user_ascent['id_user'].nunique()
+user_ascent['id_ascents'].nunique()
+#after merging we have 9470 users with 739583 climbs
 
+#number of logged ascents per user
+user_ascents['logged_ascents'] = user_acent.groupby('user_id')
 
+#age at climb = ascent date - birth date date,this will be different at
+#each ascent
 
+#years of experinece = ascent date - started, this will be different at each 
+#ascent
 
 
