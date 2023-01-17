@@ -125,12 +125,49 @@ user_ascent['id_ascents'].nunique()
 #after merging we have 9470 users with 739583 climbs
 
 #number of logged ascents per user
-user_ascents['logged_ascents'] = user_acent.groupby('user_id')
+user_ascent['logged_ascents'] = user_ascent.groupby('user_id').size()
+plt.hist(user_ascent['logged_ascents'])
 
 #age at climb = ascent date - birth date date,this will be different at
 #each ascent
 
-#years of experinece = ascent date - started, this will be different at each 
-#ascent
+#remove ascents with years that are before 1900
+user_ascent['year'].describe()
+user_ascent = user_ascent[user_ascent['year'] > 1900]
+user_ascent['year'].describe()
 
+#convert to pandas datetime to access birth year
+user_ascent['birth'] = pd.to_datetime(user_ascent['birth'])
+user_ascent['birth_year'] = user_ascent['birth'].dt.year
+
+user_ascent['ascent_age'] = user_ascent['year'] - user_ascent['birth_year']
+user_ascent['ascent_age'].describe()
+
+#several climbers completed climbs before they were born, 
+#so I will remove any rows where ascent age is less than 5
+user_ascent[['id_user','birth_year', 'year', 'ascent_age']].sort_values('ascent_age')
+user_ascent = user_ascent[user_ascent['ascent_age'] > 5]
+user_ascent[['id_user','birth_year', 'year', 'ascent_age']].sort_values('ascent_age')
+plt.hist(user_ascent['ascent_age'])
+
+
+#years of experience = ascent date - started, this will be different at each 
+#ascent
+user_ascent['started'].describe()
+#remove users that started climbing before 1900
+user_ascent = user_ascent[user_ascent['started'] > 1900]
+user_ascent['started'].describe()
+
+user_ascent['years_exp'] = user_ascent['year'] - user_ascent['started']
+user_ascent['years_exp'].describe()
+#remove users with negative climbing experience
+user_ascent = user_ascent[user_ascent['years_exp'] > 0]
+user_ascent['years_exp'].describe()
+plt.hist(user_ascent['years_exp'])
+
+#calculate progression time per grade
+
+#max flash
+
+#absolute max
 
