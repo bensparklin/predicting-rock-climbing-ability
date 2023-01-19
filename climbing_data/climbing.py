@@ -14,6 +14,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+#pd.set_option('display.max_rows', 10)
+#pd.set_option('display.max_rows', None)
+
+
 #import data
 ascents = pd.read_csv('ascents.csv')
 grades = pd.read_csv('grades.csv')
@@ -61,9 +65,8 @@ user['id'].nunique()
 #feature I use
 user_clean = user[user['birth'].notna()]
 user_clean['birth'].describe()
-#we have users who are over 100 years, most likley a typo so 
+#we have users who are over 100 years old, most likley a typo so 
 #will restrict to only have birth years after 1940
-#(maybe restrict users by age at climb?)
 user_clean = user_clean[user_clean['birth'] > '1940-01-01']
 user_clean['birth'].max()
 
@@ -109,6 +112,7 @@ plt.hist(user_clean['bmi'])
 #compare number of boulders and sport climbs
 ascents.groupby(['climb_type']).size()
 #many more sport climbs than bouldering, but I will focus on bouldering data
+#since that is what I'm more familiar with
 #(1.2 million boulders logged)
 
 #filter to only include bouldering
@@ -165,9 +169,48 @@ user_ascent = user_ascent[user_ascent['years_exp'] > 0]
 user_ascent['years_exp'].describe()
 plt.hist(user_ascent['years_exp'])
 
-#calculate progression time per grade
+#remove users where years of experience are greater than ascent age
+user_ascent[['id_user','birth_year', 'year', 'ascent_age', 'years_exp']].sort_values('ascent_age')
+user_ascent = user_ascent[user_ascent['years_exp'] < user_ascent['ascent_age']]
 
-#max flash
+#merge in grades based on grade id from grades
+user_ascent_grade = pd.merge(user_ascent, grades[['id', 'usa_boulders']], left_on='grade_id',
+                             right_on='id', how='inner', suffixes=('_ascents', '_grades'))
 
-#absolute max
+user_ascent_grade[['user_id', 'id_ascents', 'id', 'usa_boulders']].head(50)
+user_ascent_grade.dtypes
+
+#merge in methods based on method id from methods
+user_ascent_grade_method = pd.merge(user_ascent_grade, 
+                                    method[['id', 'name']], left_on='method_id',
+                                    right_on='id', how='inner', suffixes=('_grades','_methods'))
+
+#check results of merge
+user_ascent_grade_method[['user_id', 'id_ascents', 'id_grades', 'usa_boulders',
+                          'id_methods', 'name_methods']]
+user_ascent_grade_method.dtypes
+
+
+#how many ascents for each grade?
+grades_summary = user_ascent_grade_method.groupby('usa_boulders').size()
+grades_summary.plot(kind='bar')
+
+#how are ascents completed?
+methods_summary = user_ascent_grade_method.groupby('name_methods').size()
+methods_summary.plot(kind='bar')
+
+
+#calculate progression time per grade per user
+
+#identify max grade completed per user
+
+#plot correlation between features (bmi vs max, years exp vs max)
+
+
+#max flash - completed first try, but have seen others do it or were told how to do it
+
+#max redpoint per user - lead climb after having practiced
+
+#max onsight per user - flashed without seeing any else do it
+
 
