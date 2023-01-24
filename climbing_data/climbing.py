@@ -15,7 +15,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 #pd.set_option('display.max_rows', 10)
-#pd.set_option('display.max_rows', None)
+pd.set_option('display.max_rows', None)
 
 
 #import data
@@ -190,10 +190,30 @@ user_ascent_grade_method[['user_id', 'id_ascents', 'id_grades', 'usa_boulders',
                           'id_methods', 'name_methods']]
 user_ascent_grade_method.dtypes
 
+#convert grades with multiple to be one grade, using the lower grade
+user_ascent_grade_method['usa_boulders_new'] = np.where(user_ascent_grade_method['usa_boulders'] == 'V0-',
+             'VB', np.where(user_ascent_grade_method['usa_boulders'] == 'V3/4',
+                      'V3', np.where(user_ascent_grade_method['usa_boulders'] == 'V4/V5',
+                               'V4', np.where(user_ascent_grade_method['usa_boulders'] == 'V5/V6',
+                                        'V5', np.where(user_ascent_grade_method['usa_boulders'] == 'V8/9',
+                                                 'V8', user_ascent_grade_method['usa_boulders'])))))
+
+user_ascent_grade_method['usa_boulders'].unique()
+user_ascent_grade_method['usa_boulders_new'].unique()
+
+#set order of grades
+grades_order = ["VB", "V0", "V1", "V2", "V3", "V4", "V5", "V6", "V7", 
+                "V8", "V9", "V10", "V11", "V12", "V13", "V14", "V15", "V16", "V17"]
+
 
 #how many ascents for each grade?
-grades_summary = user_ascent_grade_method.groupby('usa_boulders').size()
-grades_summary.plot(kind='bar')
+grades_summary = pd.DataFrame(user_ascent_grade_method.groupby('usa_boulders_new').size())
+#move rownames into column 
+grades_summary.index.name = 'usa_boulders_new'
+grades_summary.reset_index(inplace=True)
+#plot histogram
+grades_summary.set_index('usa_boulders_new').loc[grades_order].plot(kind="bar")
+
 
 #how are ascents completed?
 methods_summary = user_ascent_grade_method.groupby('name_methods').size()
@@ -202,7 +222,10 @@ methods_summary.plot(kind='bar')
 
 #calculate progression time per grade per user
 
-#identify max grade completed per user
+#1. identify max grade completed per user
+
+
+
 
 #plot correlation between features (bmi vs max, years exp vs max)
 
