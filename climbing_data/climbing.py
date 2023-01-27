@@ -190,6 +190,10 @@ user_ascent_grade_method[['user_id', 'id_ascents', 'id_grades', 'usa_boulders',
                           'id_methods', 'name_methods']]
 user_ascent_grade_method.dtypes
 
+#remove na from grades
+user_ascent_grade_method = user_ascent_grade_method[user_ascent_grade_method['usa_boulders'].notna()]
+
+
 #convert grades with multiple to be one grade, using the lower grade
 user_ascent_grade_method['usa_boulders_new'] = np.where(user_ascent_grade_method['usa_boulders'] == 'V0-',
              'VB', np.where(user_ascent_grade_method['usa_boulders'] == 'V3/4',
@@ -198,8 +202,16 @@ user_ascent_grade_method['usa_boulders_new'] = np.where(user_ascent_grade_method
                                         'V5', np.where(user_ascent_grade_method['usa_boulders'] == 'V8/9',
                                                  'V8', user_ascent_grade_method['usa_boulders'])))))
 
+#create numeric version of grades
+user_ascent_grade_method['usa_boulders_numeric'] = user_ascent_grade_method['usa_boulders_new'].str.replace("V", "")
+user_ascent_grade_method['usa_boulders_numeric'] = user_ascent_grade_method['usa_boulders_numeric'].str.replace("B", "-1")
+user_ascent_grade_method['usa_boulders_numeric']  = user_ascent_grade_method['usa_boulders_numeric'].astype(int)
+
+
 user_ascent_grade_method['usa_boulders'].unique()
 user_ascent_grade_method['usa_boulders_new'].unique()
+user_ascent_grade_method['usa_boulders_numeric'].unique()
+
 
 #set order of grades
 grades_order = ["VB", "V0", "V1", "V2", "V3", "V4", "V5", "V6", "V7", 
@@ -223,8 +235,7 @@ methods_summary.plot(kind='bar')
 #calculate progression time per grade per user
 
 #1. identify max grade completed per user
-
-
+plt.hist(user_ascent_grade_method.groupby('user_id')['usa_boulders_numeric'].max())
 
 
 #plot correlation between features (bmi vs max, years exp vs max)
