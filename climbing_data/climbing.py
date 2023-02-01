@@ -232,13 +232,33 @@ methods_summary = user_ascent_grade_method.groupby('name_methods').size()
 methods_summary.plot(kind='bar')
 
 
-#calculate progression time per grade per user
 
 #1. identify max grade completed per user
 plt.hist(user_ascent_grade_method.groupby('user_id')['usa_boulders_numeric'].max())
 
+#what countries are the climbers from?
+countries =  pd.DataFrame(user_ascent_grade_method.drop_duplicates(subset=['id_user']).groupby('country_user').size())
+#move rownames into column 
+countries.index.name = 'country_user'
+countries.reset_index(inplace=True)
+#rename second column
+countries = countries.rename(columns={countries.columns[1]: 'number_of_users'})
+
+#combine countries with less than 10 into "other" category
+countries['country_user'] = np.where(countries['number_of_users'] < 50, 'Other', countries['country_user'])
+countries = countries.groupby('country_user')['number_of_users'].sum().sort_values(ascending=False)
+cmap = plt.cm.tab10
+colors = cmap(np.arange(len(countries)) % cmap.N)
+countries.plot(kind='bar', color=colors, xlabel='Country', ylabel='Number of users' )
 
 #plot correlation between features (bmi vs max, years exp vs max)
+
+
+#ascent comments
+#what are the most and least popular routes, using sentiment analysis about ascent difficulty
+user_ascent_grade_method[user_ascent_grade_method['comment'].notna()]['comment'].head(1000)
+
+
 
 
 #max flash - completed first try, but have seen others do it or were told how to do it
@@ -247,4 +267,5 @@ plt.hist(user_ascent_grade_method.groupby('user_id')['usa_boulders_numeric'].max
 
 #max onsight per user - flashed without seeing any else do it
 
+#calculate progression time per grade per user
 
