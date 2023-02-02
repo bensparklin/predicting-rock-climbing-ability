@@ -234,6 +234,7 @@ methods_summary.plot(kind='bar')
 
 
 #1. identify max grade completed per user
+user_ascent_grade_method['max_grade'] = user_ascent_grade_method.groupby('user_id')['usa_boulders_numeric'].max()
 plt.hist(user_ascent_grade_method.groupby('user_id')['usa_boulders_numeric'].max())
 
 #what countries are the climbers from?
@@ -252,6 +253,13 @@ colors = cmap(np.arange(len(countries)) % cmap.N)
 countries.plot(kind='bar', color=colors, xlabel='Country', ylabel='Number of users' )
 
 #plot correlation between features (bmi vs max, years exp vs max)
+no_duplicate_users = user_ascent_grade_method.drop_duplicates(subset=['id_user'])
+no_duplicate_users.dtypes
+plt.scatter(no_duplicate_users['bmi'], no_duplicate_users['max_grade'], alpha=0.5)
+plt.scatter(no_duplicate_users['bmi'], no_duplicate_users['years_exp'], alpha=0.5)
+plt.scatter(no_duplicate_users['max_grade'], no_duplicate_users['ascent_age'], alpha=0.5)
+plt.scatter(no_duplicate_users['logged_ascents'], no_duplicate_users['max_grade'], alpha=0.5)
+
 
 
 #ascent comments
