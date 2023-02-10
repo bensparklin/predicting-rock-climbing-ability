@@ -235,7 +235,11 @@ methods_summary.plot(kind='bar')
 
 #1. identify max grade completed per user
 user_ascent_grade_method['max_grade'] = user_ascent_grade_method.groupby('user_id')['usa_boulders_numeric'].max()
-plt.hist(user_ascent_grade_method.groupby('user_id')['usa_boulders_numeric'].max())
+plt.hist(user_ascent_grade_method.groupby('user_id')['usa_boulders_numeric'].max(), 
+         color='skyblue', edgecolor='k')
+plt.xlabel('Max grade')
+plt.ylabel('Number of climbers')
+plt.show()
 
 #what countries are the climbers from?
 countries =  pd.DataFrame(user_ascent_grade_method.drop_duplicates(subset=['id_user']).groupby('country_user').size())
