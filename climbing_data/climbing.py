@@ -31,7 +31,7 @@ ascents.head(10)
 #ascents data types
 ascents.dtypes
 
-#asecnts info
+#ascnts info
 ascents.info
 
 #ascents shape - (4111877, 28)
@@ -126,11 +126,11 @@ user_ascent = pd.merge(user_clean, ascents_bouldering,
 user_ascent.dtypes
 user_ascent['id_user'].nunique()
 user_ascent['id_ascents'].nunique()
-#after merging we have 9470 users with 739583 climbs
+#after merging we have 9469 users with 739554 climbs
 
 #number of logged ascents per user
-user_ascent['logged_ascents'] = user_ascent.groupby('user_id').size()
-plt.hist(user_ascent['logged_ascents'])
+user_ascent['ascent_count'] = user_ascent.groupby('id_user')['id_user'].transform('count')
+plt.hist(user_ascent['ascent_count'])
 
 #age at climb = ascent date - birth date date,this will be different at
 #each ascent
@@ -231,10 +231,10 @@ grades_summary.set_index('usa_boulders_new').loc[grades_order].plot(kind="bar")
 methods_summary = user_ascent_grade_method.groupby('name_methods').size()
 methods_summary.plot(kind='bar')
 
+#identify max grade completed per user
+user_ascent_grade_method['max_grade'] = user_ascent_grade_method['usa_boulders_numeric'].groupby(user_ascent_grade_method['id_user']).transform('max')
+user_ascent_grade_method[['id_user','max_grade']].head(100)
 
-
-#1. identify max grade completed per user
-user_ascent_grade_method['max_grade'] = user_ascent_grade_method.groupby('user_id')['usa_boulders_numeric'].max()
 plt.hist(user_ascent_grade_method.groupby('user_id')['usa_boulders_numeric'].max(), 
          color='skyblue', edgecolor='k')
 plt.xlabel('Max grade')
@@ -262,22 +262,20 @@ no_duplicate_users.dtypes
 plt.scatter(no_duplicate_users['bmi'], no_duplicate_users['max_grade'], alpha=0.5)
 plt.scatter(no_duplicate_users['bmi'], no_duplicate_users['years_exp'], alpha=0.5)
 plt.scatter(no_duplicate_users['max_grade'], no_duplicate_users['ascent_age'], alpha=0.5)
-plt.scatter(no_duplicate_users['logged_ascents'], no_duplicate_users['max_grade'], alpha=0.5)
+plt.scatter(no_duplicate_users['ascent_count'], no_duplicate_users['max_grade'], alpha=0.5)
 
+#calculate progression time per grade per user
 
+#predict the maximum boulder grade one can complete based on sex, years of experience, bmi, number of logged ascents, and progression time per grade? 
+input_df = no_duplicate_users[['id_user', 'sex', 'bmi', 'years_exp', 'ascent_count', 'max_grade']]
 
-#ascent comments
-#what are the most and least popular routes, using sentiment analysis about ascent difficulty
-user_ascent_grade_method[user_ascent_grade_method['comment'].notna()]['comment'].head(1000)
+#identify max years of exp, or years of exp when max grade was achieved?
 
-
-
-
+input_df.head(100)
 #max flash - completed first try, but have seen others do it or were told how to do it
 
 #max redpoint per user - lead climb after having practiced
 
 #max onsight per user - flashed without seeing any else do it
 
-#calculate progression time per grade per user
 
