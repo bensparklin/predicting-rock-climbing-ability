@@ -13,9 +13,22 @@ Created on Fri Dec  2 14:31:17 2022
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib import pyplot
 
-#pd.set_option('display.max_rows', 10)
-pd.set_option('display.max_rows', None)
+import seaborn as sns
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score
+from sklearn.metrics import mean_squared_error
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
+
+
+pd.set_option('display.max_rows', 100)
+pd.set_option('display.max_columns', 10)
+
+#pd.set_option('display.max_rows', None)
 
 
 #import data
@@ -173,6 +186,7 @@ plt.hist(user_ascent['years_exp'])
 user_ascent[['id_user','birth_year', 'year', 'ascent_age', 'years_exp']].sort_values('ascent_age')
 user_ascent = user_ascent[user_ascent['years_exp'] < user_ascent['ascent_age']]
 
+
 #merge in grades based on grade id from grades
 user_ascent_grade = pd.merge(user_ascent, grades[['id', 'usa_boulders']], left_on='grade_id',
                              right_on='id', how='inner', suffixes=('_ascents', '_grades'))
@@ -233,13 +247,18 @@ methods_summary.plot(kind='bar')
 
 #identify max grade completed per user
 user_ascent_grade_method['max_grade'] = user_ascent_grade_method['usa_boulders_numeric'].groupby(user_ascent_grade_method['id_user']).transform('max')
-user_ascent_grade_method[['id_user','max_grade']].head(100)
 
 plt.hist(user_ascent_grade_method.groupby('user_id')['usa_boulders_numeric'].max(), 
          color='skyblue', edgecolor='k')
 plt.xlabel('Max grade')
 plt.ylabel('Number of climbers')
 plt.show()
+
+#identify years of exp when climber completed the max grade
+#if there is a tie for a user by max grade, select the ascent that was completed first
+user_ascent_grade_method['years_exp_max_grade']=user_ascent_grade_method.sort_values(by=['usa_boulders_numeric', 'years_exp'],ascending=[False, True]).groupby('id_user')['years_exp'].transform('first')
+user_ascent_grade_method[user_ascent_grade_method["user_id"] == 1][['id_user', 'usa_boulders_numeric', 'max_grade', 'years_exp', 'years_exp_max_grade']]
+
 
 #what countries are the climbers from?
 countries =  pd.DataFrame(user_ascent_grade_method.drop_duplicates(subset=['id_user']).groupby('country_user').size())
@@ -260,18 +279,100 @@ countries.plot(kind='bar', color=colors, xlabel='Country', ylabel='Number of use
 no_duplicate_users = user_ascent_grade_method.drop_duplicates(subset=['id_user'])
 no_duplicate_users.dtypes
 plt.scatter(no_duplicate_users['bmi'], no_duplicate_users['max_grade'], alpha=0.5)
-plt.scatter(no_duplicate_users['bmi'], no_duplicate_users['years_exp'], alpha=0.5)
-plt.scatter(no_duplicate_users['max_grade'], no_duplicate_users['ascent_age'], alpha=0.5)
+plt.scatter(no_duplicate_users['bmi'], no_duplicate_users['years_exp_max_grade'], alpha=0.5)
+plt.scatter(no_duplicate_users['years_exp_max_grade'], no_duplicate_users['ascent_age'], alpha=0.5)
 plt.scatter(no_duplicate_users['ascent_count'], no_duplicate_users['max_grade'], alpha=0.5)
+plt.scatter(no_duplicate_users['ascent_count'], no_duplicate_users['bmi'], alpha=0.5)
+
 
 #calculate progression time per grade per user
 
 #predict the maximum boulder grade one can complete based on sex, years of experience, bmi, number of logged ascents, and progression time per grade? 
-input_df = no_duplicate_users[['id_user', 'sex', 'bmi', 'years_exp', 'ascent_count', 'max_grade']]
+input_df = no_duplicate_users[['id_user', 'sex', 'bmi', 'years_exp_max_grade', 'ascent_count', 'max_grade']]
 
-#identify max years of exp, or years of exp when max grade was achieved?
+x =input_df[['sex', 'bmi', 'years_exp_max_grade', 'ascent_count']]
+y= input_df['max_grade']
+x
+y
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 42)
 
-input_df.head(100)
+lr = LinearRegression()
+lr.fit(x_train,y_train)
+y_prediction =  lr.predict(x_test)
+score=r2_score(y_test,y_prediction)
+print('r2 score: ',score)
+print('mean_sqrd_error:',mean_squared_error(y_test,y_prediction))
+print('root_mean_squared error:',np.sqrt(mean_squared_error(y_test,y_prediction)))
+
+# get importance
+importance = lr.coef_
+# summarize feature importance
+for i,v in enumerate(importance):
+ print('Feature: %0d, Score: %.5f' % (i,v))
+# plot feature importance
+pyplot.bar([x for x in range(len(importance))], importance)
+pyplot.show()
+
+dt = DecisionTreeRegressor()
+dt.fit(x_train,y_train)
+y_prediction =  dt.predict(x_test)
+score=r2_score(y_test,y_prediction)
+print('r2 score: ',score)
+print('mean_sqrd_error:',mean_squared_error(y_test,y_prediction))
+print('root_mean_squared error:',np.sqrt(mean_squared_error(y_test,y_prediction)))
+
+# get importance
+importance = dt.feature_importances_
+# summarize feature importance
+for i,v in enumerate(importance):
+ print('Feature: %0d, Score: %.5f' % (i,v))
+# plot feature importance
+pyplot.bar([x for x in range(len(importance))], importance)
+pyplot.show()
+
+rt = RandomForestRegressor()
+rt.fit(x_train,y_train)
+y_prediction =  rt.predict(x_test)
+score=r2_score(y_test,y_prediction)
+print('r2 score: ',score)
+print('mean_sqrd_error:',mean_squared_error(y_test,y_prediction))
+print('root_mean_squared error:',np.sqrt(mean_squared_error(y_test,y_prediction)))
+
+# get importance
+importance = rt.feature_importances_
+# summarize feature importance
+for i,v in enumerate(importance):
+ print('Feature: %0d, Score: %.5f' % (i,v))
+# plot feature importance
+pyplot.bar([x for x in range(len(importance))], importance)
+pyplot.show()
+
+#xgboost
+
+#Perform 5-fold cross-validation to better estimate the errors. 
+#Compare to prediction error using test data.
+cv_score = cross_val_score(lr, x_train, y_train, cv=5, scoring='r2')
+f"CV error = {np.round(np.mean(cv_score), 3)}"
+
+cv_score = cross_val_score(dt, x_train, y_train, cv=5, scoring='r2')
+f"CV error = {np.round(np.mean(cv_score), 3)}"
+ 
+cv_score = cross_val_score(rt, x_train, y_train, cv=5, scoring='r2')
+f"CV error = {np.round(np.mean(cv_score), 3)}"
+
+#Draw a graph to show how well each model predicted an individual's signal
+perf = pd.DataFrame({'orig': y_train,
+                     'ln': lr.predict(x_train),
+                     'dt': dt.predict(x_train),
+                     'rt': rt.predict(x_train)})
+
+sns.relplot(data=pd.melt(perf, id_vars='orig'), x='orig', y='value', hue='variable',alpha=0.3)
+
+sns.relplot(data=perf, x='orig', y='dt')
+sns.relplot(data=perf, x='orig', y='lr')
+sns.relplot(data=perf, x='orig', y='rt')
+
+
 #max flash - completed first try, but have seen others do it or were told how to do it
 
 #max redpoint per user - lead climb after having practiced
