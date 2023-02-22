@@ -254,10 +254,13 @@ methods_summary.plot(kind='bar')
 #identify max grade completed per user
 user_ascent_grade_method['max_grade'] = user_ascent_grade_method['usa_boulders_new'].groupby(user_ascent_grade_method['id_user']).transform('max')
 #combine max grade categories 
-user_ascent_grade_method['max_grade_combined'] = np.where(user_ascent_grade_method['max_grade'].isin(["VB","V0","V1","V2", "V3", "V4"]), 'VB - V4', 
-                            np.where(user_ascent_grade_method['max_grade'].isin(["V5","V6"]), 'V5 - V6',
-                                np.where(user_ascent_grade_method['max_grade'].isin(["V7","V8"]), 'V7 - V8',
-                                          np.where(user_ascent_grade_method['max_grade'].isin(["V9", "V10", "V11","V12","V13","V14", "V15", "V16", "V17"]), 'V9 - V17',user_ascent_grade_method['max_grade']))))
+#user_ascent_grade_method['max_grade_combined'] = np.where(user_ascent_grade_method['max_grade'].isin(["VB","V0","V1","V2", "V3", "V4"]), 'VB - V4', 
+#                            np.where(user_ascent_grade_method['max_grade'].isin(["V5","V6"]), 'V5 - V6',
+#                                np.where(user_ascent_grade_method['max_grade'].isin(["V7","V8"]), 'V7 - V8',
+#                                          np.where(user_ascent_grade_method['max_grade'].isin(["V9", "V10", "V11","V12","V13","V14", "V15", "V16", "V17"]), 'V9 - V17',user_ascent_grade_method['max_grade']))))
+
+user_ascent_grade_method['max_grade_combined'] = np.where(user_ascent_grade_method['max_grade'].isin(["VB","V0","V1","V2", "V3", "V4", "V5", "V6", "V7"]), 'Low', 'High')
+
 #check it worked
 user_ascent_grade_method[['max_grade', 'max_grade_combined']].head(10)
 
@@ -310,8 +313,8 @@ x
 y
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 42)
 
-#model = LogisticRegression(multi_class='multinomial', solver='newton-cg')
-model = RandomForestClassifier()
+model = LogisticRegression(solver='lbfgs')
+#model = RandomForestClassifier()
 cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
 n_scores = cross_val_score(model, x, y, scoring='accuracy', cv=cv)
 print('Mean Accuracy: %.3f (%.3f)' % (np.mean(n_scores), np.std(n_scores)))
