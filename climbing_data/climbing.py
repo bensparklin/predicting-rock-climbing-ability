@@ -22,7 +22,13 @@ from sklearn.metrics import r2_score
 from sklearn.metrics import mean_squared_error
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegressionfrom 
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import RepeatedStratifiedKFold
+from sklearn.ensemble import RandomForestClassifier
+
+
+
 
 
 pd.set_option('display.max_rows', 100)
@@ -246,13 +252,15 @@ methods_summary = user_ascent_grade_method.groupby('name_methods').size()
 methods_summary.plot(kind='bar')
 
 #identify max grade completed per user
-user_ascent_grade_method['max_grade'] = user_ascent_grade_method['usa_boulders_numeric'].groupby(user_ascent_grade_method['id_user']).transform('max')
+user_ascent_grade_method['max_grade'] = user_ascent_grade_method['usa_boulders_new'].groupby(user_ascent_grade_method['id_user']).transform('max')
+#combine max grade categories 
+user_ascent_grade_method['max_grade_combined'] = np.where(user_ascent_grade_method['max_grade'].isin(["VB","V0","V1","V2", "V3", "V4"]), 'VB - V4', 
+                            np.where(user_ascent_grade_method['max_grade'].isin(["V5","V6"]), 'V5 - V6',
+                                np.where(user_ascent_grade_method['max_grade'].isin(["V7","V8"]), 'V7 - V8',
+                                          np.where(user_ascent_grade_method['max_grade'].isin(["V9", "V10", "V11","V12","V13","V14", "V15", "V16", "V17"]), 'V9 - V17',user_ascent_grade_method['max_grade']))))
+#check it worked
+user_ascent_grade_method[['max_grade', 'max_grade_combined']].head(10)
 
-plt.hist(user_ascent_grade_method.groupby('user_id')['usa_boulders_numeric'].max(), 
-         color='skyblue', edgecolor='k')
-plt.xlabel('Max grade')
-plt.ylabel('Number of climbers')
-plt.show()
 
 #identify years of exp when climber completed the max grade
 #if there is a tie for a user by max grade, select the ascent that was completed first
@@ -277,6 +285,7 @@ countries.plot(kind='bar', color=colors, xlabel='Country', ylabel='Number of use
 
 #plot correlation between features (bmi vs max, years exp vs max)
 no_duplicate_users = user_ascent_grade_method.drop_duplicates(subset=['id_user'])
+
 no_duplicate_users.dtypes
 plt.scatter(no_duplicate_users['bmi'], no_duplicate_users['max_grade'], alpha=0.5)
 plt.scatter(no_duplicate_users['bmi'], no_duplicate_users['years_exp_max_grade'], alpha=0.5)
@@ -288,13 +297,24 @@ plt.scatter(no_duplicate_users['ascent_count'], no_duplicate_users['bmi'], alpha
 #calculate progression time per grade per user
 
 #predict the maximum boulder grade one can complete based on sex, years of experience, bmi, number of logged ascents, and progression time per grade? 
-input_df = no_duplicate_users[['id_user', 'sex', 'bmi', 'years_exp_max_grade', 'ascent_count', 'max_grade']]
+input_df = no_duplicate_users[['id_user', 'sex', 'bmi', 'years_exp_max_grade', 'ascent_count', 'max_grade_combined']]
+
+max_grade_summary = pd.DataFrame(input_df.groupby('max_grade_combined').size())
+max_grade_summary.index.name = 'max_grade_combined'
+max_grade_summary.reset_index(inplace=True)
+max_grade_summary.set_index('max_grade_combined').plot(kind='bar',xlabel='Max Grade', ylabel='Number of climbers', color='skyblue', edgecolor='k' )
 
 x =input_df[['sex', 'bmi', 'years_exp_max_grade', 'ascent_count']]
-y= input_df['max_grade']
+y= input_df['max_grade_combined']
 x
 y
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 42)
+
+#model = LogisticRegression(multi_class='multinomial', solver='newton-cg')
+model = RandomForestClassifier()
+cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+n_scores = cross_val_score(model, x, y, scoring='accuracy', cv=cv)
+print('Mean Accuracy: %.3f (%.3f)' % (np.mean(n_scores), np.std(n_scores)))
 
 lr = LinearRegression()
 lr.fit(x_train,y_train)
@@ -371,6 +391,21 @@ sns.relplot(data=pd.melt(perf, id_vars='orig'), x='orig', y='value', hue='variab
 sns.relplot(data=perf, x='orig', y='dt')
 sns.relplot(data=perf, x='orig', y='lr')
 sns.relplot(data=perf, x='orig', y='rt')
+
+# linearity
+#check for each variable combination
+gre = sns.regplot(x= 'gre', y= 'admit', data= df, logistic= True).set_title("GRE Log Odds Linear Plot")
+#outliers
+describe()
+gpa_rank_box = sns.boxplot(data= df[['gpa', 'rank']]).set_title("GPA and Rank Box Plot")
+
+#indepdennce
+#multicolineraity 
+df.corr() #visualize as heatmap
+
+
+
+#combine grades into smaller groups
 
 
 #max flash - completed first try, but have seen others do it or were told how to do it
