@@ -252,23 +252,26 @@ methods_summary = user_ascent_grade_method.groupby('name_methods').size()
 methods_summary.plot(kind='bar')
 
 #identify max grade completed per user
-user_ascent_grade_method['max_grade'] = user_ascent_grade_method['usa_boulders_new'].groupby(user_ascent_grade_method['id_user']).transform('max')
-#combine max grade categories 
-#user_ascent_grade_method['max_grade_combined'] = np.where(user_ascent_grade_method['max_grade'].isin(["VB","V0","V1","V2", "V3", "V4"]), 'VB - V4', 
-#                            np.where(user_ascent_grade_method['max_grade'].isin(["V5","V6"]), 'V5 - V6',
-#                                np.where(user_ascent_grade_method['max_grade'].isin(["V7","V8"]), 'V7 - V8',
-#                                          np.where(user_ascent_grade_method['max_grade'].isin(["V9", "V10", "V11","V12","V13","V14", "V15", "V16", "V17"]), 'V9 - V17',user_ascent_grade_method['max_grade']))))
-
-user_ascent_grade_method['max_grade_combined'] = np.where(user_ascent_grade_method['max_grade'].isin(["VB","V0","V1","V2", "V3", "V4", "V5", "V6", "V7"]), 'Low', 'High')
+user_ascent_grade_method['max_grade'] = user_ascent_grade_method['usa_boulders_numeric'].groupby(user_ascent_grade_method['id_user']).transform('max')
+user_ascent_grade_method['max_grade_combined'] = np.where(user_ascent_grade_method['max_grade'].isin([-1,0,1,2,3,4,5,6,7]), 'Low', 'High')
 
 #check it worked
 user_ascent_grade_method[['max_grade', 'max_grade_combined']].head(10)
 
-
 #identify years of exp when climber completed the max grade
 #if there is a tie for a user by max grade, select the ascent that was completed first
 user_ascent_grade_method['years_exp_max_grade']=user_ascent_grade_method.sort_values(by=['usa_boulders_numeric', 'years_exp'],ascending=[False, True]).groupby('id_user')['years_exp'].transform('first')
-user_ascent_grade_method[user_ascent_grade_method["user_id"] == 1][['id_user', 'usa_boulders_numeric', 'max_grade', 'years_exp', 'years_exp_max_grade']]
+
+##identify age when climber completed the max grade
+user_ascent_grade_method['age_max_grade']=user_ascent_grade_method.sort_values(by=['usa_boulders_numeric', 'years_exp'],ascending=[False, True]).groupby('id_user')['ascent_age'].transform('first')
+
+#check number ascents at time max grade was completed
+user_ascent_grade_method['ascents_max_grade'] = user_ascent_grade_method[user_ascent_grade_method['years_exp'] <= user_ascent_grade_method['years_exp_max_grade']].groupby('id_user')['id_user'].transform('count')
+
+#calculate number of redpoints completed at time of max grade
+user_ascent_grade_method[['max_grade', 'years_exp', 'years_exp_max_grade', 'ascents_max_grade', 'usa_boulders_numeric']]
+                     
+user_ascent_grade_method[user_ascent_grade_method["user_id"] == 3][['usa_boulders_numeric', 'max_grade', 'years_exp', 'name_methods']]
 
 
 #what countries are the climbers from?
@@ -287,6 +290,7 @@ colors = cmap(np.arange(len(countries)) % cmap.N)
 countries.plot(kind='bar', color=colors, xlabel='Country', ylabel='Number of users' )
 
 #plot correlation between features (bmi vs max, years exp vs max)
+user_ascent_grade_method = user_ascent_grade_method[user_ascent_grade_method['ascents_max_grade'].notna()]
 no_duplicate_users = user_ascent_grade_method.drop_duplicates(subset=['id_user'])
 
 no_duplicate_users.dtypes
@@ -295,40 +299,36 @@ plt.scatter(no_duplicate_users['bmi'], no_duplicate_users['years_exp_max_grade']
 plt.scatter(no_duplicate_users['years_exp_max_grade'], no_duplicate_users['ascent_age'], alpha=0.5)
 plt.scatter(no_duplicate_users['ascent_count'], no_duplicate_users['max_grade'], alpha=0.5)
 plt.scatter(no_duplicate_users['ascent_count'], no_duplicate_users['bmi'], alpha=0.5)
+plt.scatter(no_duplicate_users['age_max_grade'], no_duplicate_users['bmi'], alpha=0.5)
+plt.scatter(no_duplicate_users['age_max_grade'], no_duplicate_users['years_exp_max_grade'], alpha=0.5)
 
+corr_matrix = np.corrcoef(no_duplicate_users['age_max_grade'], no_duplicate_users['years_exp_max_grade'])
+corr = corr_matrix[0,1]
+R_sq = corr**2
 
-#calculate progression time per grade per user
 
 #predict the maximum boulder grade one can complete based on sex, years of experience, bmi, number of logged ascents, and progression time per grade? 
-input_df = no_duplicate_users[['id_user', 'sex', 'bmi', 'years_exp_max_grade', 'ascent_count', 'max_grade_combined']]
+input_df = no_duplicate_users[['id_user', 'sex', 'bmi', 'years_exp_max_grade', 'age_max_grade', 'ascents_max_grade', 'max_grade_combined']]
 
 max_grade_summary = pd.DataFrame(input_df.groupby('max_grade_combined').size())
 max_grade_summary.index.name = 'max_grade_combined'
 max_grade_summary.reset_index(inplace=True)
 max_grade_summary.set_index('max_grade_combined').plot(kind='bar',xlabel='Max Grade', ylabel='Number of climbers', color='skyblue', edgecolor='k' )
 
-x =input_df[['sex', 'bmi', 'years_exp_max_grade', 'ascent_count']]
+x =input_df[['sex', 'bmi', 'years_exp_max_grade', 'ascents_max_grade', 'age_max_grade']]
 y= input_df['max_grade_combined']
 x
 y
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 42)
 
 model = LogisticRegression(solver='lbfgs')
-#model = RandomForestClassifier()
 cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
 n_scores = cross_val_score(model, x, y, scoring='accuracy', cv=cv)
 print('Mean Accuracy: %.3f (%.3f)' % (np.mean(n_scores), np.std(n_scores)))
 
-lr = LinearRegression()
-lr.fit(x_train,y_train)
-y_prediction =  lr.predict(x_test)
-score=r2_score(y_test,y_prediction)
-print('r2 score: ',score)
-print('mean_sqrd_error:',mean_squared_error(y_test,y_prediction))
-print('root_mean_squared error:',np.sqrt(mean_squared_error(y_test,y_prediction)))
-
+model.fit(x, y)
 # get importance
-importance = lr.coef_
+importance = model.coef_[0]
 # summarize feature importance
 for i,v in enumerate(importance):
  print('Feature: %0d, Score: %.5f' % (i,v))
@@ -336,80 +336,26 @@ for i,v in enumerate(importance):
 pyplot.bar([x for x in range(len(importance))], importance)
 pyplot.show()
 
-dt = DecisionTreeRegressor()
-dt.fit(x_train,y_train)
-y_prediction =  dt.predict(x_test)
-score=r2_score(y_test,y_prediction)
-print('r2 score: ',score)
-print('mean_sqrd_error:',mean_squared_error(y_test,y_prediction))
-print('root_mean_squared error:',np.sqrt(mean_squared_error(y_test,y_prediction)))
-
-# get importance
-importance = dt.feature_importances_
-# summarize feature importance
-for i,v in enumerate(importance):
- print('Feature: %0d, Score: %.5f' % (i,v))
-# plot feature importance
-pyplot.bar([x for x in range(len(importance))], importance)
-pyplot.show()
-
-rt = RandomForestRegressor()
-rt.fit(x_train,y_train)
-y_prediction =  rt.predict(x_test)
-score=r2_score(y_test,y_prediction)
-print('r2 score: ',score)
-print('mean_sqrd_error:',mean_squared_error(y_test,y_prediction))
-print('root_mean_squared error:',np.sqrt(mean_squared_error(y_test,y_prediction)))
-
-# get importance
-importance = rt.feature_importances_
-# summarize feature importance
-for i,v in enumerate(importance):
- print('Feature: %0d, Score: %.5f' % (i,v))
-# plot feature importance
-pyplot.bar([x for x in range(len(importance))], importance)
-pyplot.show()
-
-#xgboost
-
-#Perform 5-fold cross-validation to better estimate the errors. 
-#Compare to prediction error using test data.
-cv_score = cross_val_score(lr, x_train, y_train, cv=5, scoring='r2')
-f"CV error = {np.round(np.mean(cv_score), 3)}"
-
-cv_score = cross_val_score(dt, x_train, y_train, cv=5, scoring='r2')
-f"CV error = {np.round(np.mean(cv_score), 3)}"
- 
-cv_score = cross_val_score(rt, x_train, y_train, cv=5, scoring='r2')
-f"CV error = {np.round(np.mean(cv_score), 3)}"
-
-#Draw a graph to show how well each model predicted an individual's signal
-perf = pd.DataFrame({'orig': y_train,
-                     'ln': lr.predict(x_train),
-                     'dt': dt.predict(x_train),
-                     'rt': rt.predict(x_train)})
-
-sns.relplot(data=pd.melt(perf, id_vars='orig'), x='orig', y='value', hue='variable',alpha=0.3)
-
-sns.relplot(data=perf, x='orig', y='dt')
-sns.relplot(data=perf, x='orig', y='lr')
-sns.relplot(data=perf, x='orig', y='rt')
+#check assumptions
 
 # linearity
 #check for each variable combination
-gre = sns.regplot(x= 'gre', y= 'admit', data= df, logistic= True).set_title("GRE Log Odds Linear Plot")
+#gre = sns.regplot(x= 'gre', y= 'admit', data= df, logistic= True).set_title("GRE Log Odds Linear Plot")
+
 #outliers
-describe()
-gpa_rank_box = sns.boxplot(data= df[['gpa', 'rank']]).set_title("GPA and Rank Box Plot")
+#describe()
+#gpa_rank_box = sns.boxplot(data= df[['gpa', 'rank']]).set_title("GPA and Rank Box Plot")
 
-#indepdennce
-#multicolineraity 
-df.corr() #visualize as heatmap
+#independence
 
+#multicollineraity 
+#df.corr() #visualize as heatmap
 
+#instead of using years of exp to calcualte max grade related features, use date of ascent completion
+#break ascent count down features by ascent types
 
-#combine grades into smaller groups
-
+#check pca of data before model
+#add number of flashes, redpoints, onsights etc?
 
 #max flash - completed first try, but have seen others do it or were told how to do it
 
