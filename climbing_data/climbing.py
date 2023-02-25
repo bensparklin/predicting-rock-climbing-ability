@@ -249,30 +249,44 @@ grades_summary.set_index('usa_boulders_new').loc[grades_order].plot(kind="bar")
 
 #how are ascents completed?
 methods_summary = user_ascent_grade_method.groupby('name_methods').size()
+methods_summary
 methods_summary.plot(kind='bar')
+
+#toprope is not supposed to be in the section of boulders, so I will remove it
+user_ascent_grade_method = user_ascent_grade_method[user_ascent_grade_method['name_methods'].isin(['Flash', 'Onsight', 'Redpoint'])]
+methods_summary = user_ascent_grade_method.groupby('name_methods').size()
+methods_summary
 
 #identify max grade completed per user
 user_ascent_grade_method['max_grade'] = user_ascent_grade_method['usa_boulders_numeric'].groupby(user_ascent_grade_method['id_user']).transform('max')
-user_ascent_grade_method['max_grade_combined'] = np.where(user_ascent_grade_method['max_grade'].isin([-1,0,1,2,3,4,5,6,7]), 'Low', 'High')
 
-#check it worked
-user_ascent_grade_method[['max_grade', 'max_grade_combined']].head(10)
+#Create column with date of first max grade ascent
+user_ascent_grade_method['max_grade_date']=user_ascent_grade_method.sort_values(by=['usa_boulders_numeric', 'year'],ascending=[False, True]).groupby('id_user')['year'].transform('first')
+
+#Remove any ascents that were completed after the max grade date 
+user_ascent_grade_method = user_ascent_grade_method[user_ascent_grade_method['year'] <= user_ascent_grade_method['max_grade_date']]
+
 
 #identify years of exp when climber completed the max grade
 #if there is a tie for a user by max grade, select the ascent that was completed first
-user_ascent_grade_method['years_exp_max_grade']=user_ascent_grade_method.sort_values(by=['usa_boulders_numeric', 'years_exp'],ascending=[False, True]).groupby('id_user')['years_exp'].transform('first')
+user_ascent_grade_method['years_exp_max_grade']=user_ascent_grade_method.sort_values(by=['usa_boulders_numeric', 'year'],ascending=[False, True]).groupby('id_user')['years_exp'].transform('first')
 
 ##identify age when climber completed the max grade
-user_ascent_grade_method['age_max_grade']=user_ascent_grade_method.sort_values(by=['usa_boulders_numeric', 'years_exp'],ascending=[False, True]).groupby('id_user')['ascent_age'].transform('first')
+user_ascent_grade_method['age_max_grade']=user_ascent_grade_method.sort_values(by=['usa_boulders_numeric', 'year'],ascending=[False, True]).groupby('id_user')['ascent_age'].transform('first')
 
 #check number ascents at time max grade was completed
-user_ascent_grade_method['ascents_max_grade'] = user_ascent_grade_method[user_ascent_grade_method['years_exp'] <= user_ascent_grade_method['years_exp_max_grade']].groupby('id_user')['id_user'].transform('count')
+user_ascent_grade_method['ascents_max_grade'] = user_ascent_grade_method.groupby('id_user')['id_user'].transform('count')
 
-#calculate number of redpoints completed at time of max grade
-user_ascent_grade_method[['max_grade', 'years_exp', 'years_exp_max_grade', 'ascents_max_grade', 'usa_boulders_numeric']]
-                     
-user_ascent_grade_method[user_ascent_grade_method["user_id"] == 3][['usa_boulders_numeric', 'max_grade', 'years_exp', 'name_methods']]
+#pivot table to find number of redpoints, flashes, and onsights
+user_ascent_grade_method['ascent_count'] = 1
 
+ascent_type_sums = user_ascent_grade_method.pivot_table(
+    values='ascent_count', index='user_id', columns='name_methods',
+    fill_value=0, aggfunc='sum')
+
+user_ascent_grade_method = pd.merge(user_ascent_grade_method, ascent_type_sums, on='user_id')
+
+user_ascent_grade_method[user_ascent_grade_method['user_id'] == 3][['user_id', 'ascents_max_grade', 'Redpoint', 'Onsight', 'Flash']]
 
 #what countries are the climbers from?
 countries =  pd.DataFrame(user_ascent_grade_method.drop_duplicates(subset=['id_user']).groupby('country_user').size())
@@ -290,42 +304,131 @@ colors = cmap(np.arange(len(countries)) % cmap.N)
 countries.plot(kind='bar', color=colors, xlabel='Country', ylabel='Number of users' )
 
 #plot correlation between features (bmi vs max, years exp vs max)
-user_ascent_grade_method = user_ascent_grade_method[user_ascent_grade_method['ascents_max_grade'].notna()]
 no_duplicate_users = user_ascent_grade_method.drop_duplicates(subset=['id_user'])
+
+#combine max greade into categories based on median
+np.median(no_duplicate_users['max_grade'])
+no_duplicate_users['max_grade_combined'] = np.where(no_duplicate_users['max_grade'].isin([-1,0,1,2,3,4,5,6,7,8]), 'Low', 'High')
+max_grade_summary = pd.DataFrame(no_duplicate_users.groupby('max_grade_combined').size())
+max_grade_summary.index.name = 'max_grade_combined'
+max_grade_summary.reset_index(inplace=True)
+max_grade_summary.set_index('max_grade_combined').plot(kind='bar',xlabel='Max Grade', ylabel='Number of climbers', color='skyblue', edgecolor='k' )
+
 
 no_duplicate_users.dtypes
 plt.scatter(no_duplicate_users['bmi'], no_duplicate_users['max_grade'], alpha=0.5)
 plt.scatter(no_duplicate_users['bmi'], no_duplicate_users['years_exp_max_grade'], alpha=0.5)
 plt.scatter(no_duplicate_users['years_exp_max_grade'], no_duplicate_users['ascent_age'], alpha=0.5)
-plt.scatter(no_duplicate_users['ascent_count'], no_duplicate_users['max_grade'], alpha=0.5)
-plt.scatter(no_duplicate_users['ascent_count'], no_duplicate_users['bmi'], alpha=0.5)
 plt.scatter(no_duplicate_users['age_max_grade'], no_duplicate_users['bmi'], alpha=0.5)
 plt.scatter(no_duplicate_users['age_max_grade'], no_duplicate_users['years_exp_max_grade'], alpha=0.5)
+plt.scatter(no_duplicate_users['ascents_max_grade'], no_duplicate_users['Redpoint'], alpha=0.5)
+plt.scatter(no_duplicate_users['ascents_max_grade'], no_duplicate_users['Onsight'], alpha=0.5)
+plt.scatter(no_duplicate_users['ascents_max_grade'], no_duplicate_users['Flash'], alpha=0.5)
+plt.scatter(no_duplicate_users['Flash'], no_duplicate_users['Redpoint'], alpha=0.5)
+plt.scatter(no_duplicate_users['Onsight'], no_duplicate_users['Redpoint'], alpha=0.5)
+plt.scatter(no_duplicate_users['Onsight'], no_duplicate_users['Flash'], alpha=0.5)
 
-corr_matrix = np.corrcoef(no_duplicate_users['age_max_grade'], no_duplicate_users['years_exp_max_grade'])
+
+
+
+
+
+corr_matrix = np.corrcoef(no_duplicate_users['ascents_max_grade'], no_duplicate_users['Redpoint'])
 corr = corr_matrix[0,1]
 R_sq = corr**2
 
 
 #predict the maximum boulder grade one can complete based on sex, years of experience, bmi, number of logged ascents, and progression time per grade? 
-input_df = no_duplicate_users[['id_user', 'sex', 'bmi', 'years_exp_max_grade', 'age_max_grade', 'ascents_max_grade', 'max_grade_combined']]
+input_df = no_duplicate_users[['id_user', 'sex', 'bmi', 'years_exp_max_grade', 'age_max_grade', 'Redpoint', 'Onsight','Flash', 'max_grade_combined']]
 
-max_grade_summary = pd.DataFrame(input_df.groupby('max_grade_combined').size())
-max_grade_summary.index.name = 'max_grade_combined'
-max_grade_summary.reset_index(inplace=True)
-max_grade_summary.set_index('max_grade_combined').plot(kind='bar',xlabel='Max Grade', ylabel='Number of climbers', color='skyblue', edgecolor='k' )
 
-x =input_df[['sex', 'bmi', 'years_exp_max_grade', 'ascents_max_grade', 'age_max_grade']]
+input_df.head(10)
+
+x =input_df[['sex', 'bmi', 'years_exp_max_grade', 'age_max_grade', 'Redpoint', 'Onsight','Flash']]
 y= input_df['max_grade_combined']
 x
 y
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 42)
 
+
 model = LogisticRegression(solver='lbfgs')
+#model = svm.SVC()
+#model=RandomForestClassifier()
+
+from sklearn.preprocessing import StandardScaler
+from sklearn import svm
+from sklearn.model_selection import GridSearchCV
+
+
+scaler = StandardScaler()
+scaler.fit(x)
+scaler.transform(x)
+
+
 cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
 n_scores = cross_val_score(model, x, y, scoring='accuracy', cv=cv)
 print('Mean Accuracy: %.3f (%.3f)' % (np.mean(n_scores), np.std(n_scores)))
 
+
+#logistic regressionhyperparamter tuning
+solvers = ['newton-cg', 'lbfgs', 'liblinear']
+penalty = ['l2']
+c_values = [100, 10, 1.0, 0.1, 0.01]
+# define grid search
+grid = dict(solver=solvers,penalty=penalty,C=c_values)
+cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+grid_search = GridSearchCV(estimator=model, param_grid=grid, cv=cv, scoring='accuracy',error_score=0)
+grid_result = grid_search.fit(x, y)
+# summarize results
+print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+means = grid_result.cv_results_['mean_test_score']
+stds = grid_result.cv_results_['std_test_score']
+params = grid_result.cv_results_['params']
+for mean, stdev, param in zip(means, stds, params):
+    print("%f (%f) with: %r" % (mean, stdev, param))
+    
+#svm hyperparamter tuning
+from sklearn.svm import SVC
+from sklearn.ensemble import GradientBoostingClassifier
+
+
+model = SVC()
+kernel = ['poly', 'rbf', 'sigmoid']
+C = [50, 10, 1.0, 0.1, 0.01]
+gamma = ['scale']
+# define grid search
+grid = dict(kernel=kernel,C=C,gamma=gamma)
+cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+grid_search = GridSearchCV(estimator=model, param_grid=grid, cv=cv, scoring='accuracy',error_score=0)
+grid_result_svm = grid_search.fit(scaler.transform(x), y)
+# summarize results
+print("Best: %f using %s" % (grid_result_svm.best_score_, grid_result_svm.best_params_))
+means = grid_result_svm.cv_results_['mean_test_score']
+stds = grid_result_svm.cv_results_['std_test_score']
+params = grid_result_svm.cv_results_['params']
+for mean, stdev, param in zip(means, stds, params):
+    print("%f (%f) with: %r" % (mean, stdev, param))
+
+
+#randomforest hyperparamter tuning
+model = RandomForestClassifier()
+n_estimators = [10, 100, 1000]
+max_features = ['sqrt', 'log2']
+# define grid search
+grid = dict(n_estimators=n_estimators,max_features=max_features)
+cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+grid_search = GridSearchCV(estimator=model, param_grid=grid, cv=cv, scoring='accuracy',error_score=0)
+grid_result = grid_search.fit(x, y)
+#summarize results
+print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+means = grid_result.cv_results_['mean_test_score']
+stds = grid_result.cv_results_['std_test_score']
+params = grid_result.cv_results_['params']
+for mean, stdev, param in zip(means, stds, params):
+    print("%f (%f) with: %r" % (mean, stdev, param))
+
+
+#feature importance
 model.fit(x, y)
 # get importance
 importance = model.coef_[0]
@@ -351,16 +454,12 @@ pyplot.show()
 #multicollineraity 
 #df.corr() #visualize as heatmap
 
-#instead of using years of exp to calcualte max grade related features, use date of ascent completion
-#break ascent count down features by ascent types
+#check pca before model
 
-#check pca of data before model
-#add number of flashes, redpoints, onsights etc?
+#flash - completed on first try but have seen others do it or were told how to do it
 
-#max flash - completed first try, but have seen others do it or were told how to do it
+#redpoint - completed climb after having practiced the route
 
-#max redpoint per user - lead climb after having practiced
-
-#max onsight per user - flashed without seeing any else do it
+#onsight - completed first try without seeing any else do it or being told how to do it
 
 
