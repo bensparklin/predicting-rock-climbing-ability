@@ -348,6 +348,62 @@ x =input_df[['sex', 'bmi', 'years_exp_max_grade', 'age_max_grade', 'Redpoint', '
 y= input_df['max_grade_combined']
 x
 y
+
+#pca
+from sklearn.decomposition import PCA
+pca = PCA(n_components=2)
+principalComponents = pca.fit_transform(x)
+
+principal_df = pd.DataFrame(data = principalComponents
+             , columns = ['principal component 1', 'principal component 2'])
+principal_df['max_grade_combined'] = y
+
+sns.scatterplot(
+    x="principal component 1", y="principal component 2",
+    hue="max_grade_combined",
+    palette=sns.color_palette("hls", 10),
+    data=principal_df,
+    legend="full",
+    alpha=0.99
+)
+
+#check assumptions
+
+
+#check features for multicollineraity 
+ #visualize as heatmap
+corr = x.corr()
+# plot the heatmap
+sns.heatmap(corr, 
+        xticklabels=corr.columns,
+        yticklabels=corr.columns, annot=True)
+
+#redpoint and flash have the strongest correlation
+plt.scatter(no_duplicate_users['Flash'], no_duplicate_users['Redpoint'], alpha=0.5)
+#next highest is age and years exp
+plt.scatter(no_duplicate_users['age_max_grade'], no_duplicate_users['years_exp_max_grade'], alpha=0.5)
+
+
+#outliers
+sns.boxplot(data= x['bmi'])
+sns.boxplot(data= x[['years_exp_max_grade', 'age_max_grade']])
+sns.boxplot(data= x[['Redpoint', 'Onsight', 'Flash']])
+
+x['Redpoint'].describe()
+
+# linearity
+#check for each variable combination
+
+sns.regplot(x= input_df['bmi'], y=pd.get_dummies(input_df['max_grade_combined'])['High'], logistic= True)
+sns.regplot(x= input_df['age_max_grade'], y=pd.get_dummies(input_df['max_grade_combined'])['High'], logistic= True)
+sns.regplot(x= input_df['years_exp_max_grade'], y=pd.get_dummies(input_df['max_grade_combined'])['High'], logistic= True)
+sns.regplot(x= input_df['sex'], y=pd.get_dummies(input_df['max_grade_combined'])['High'], logistic= True)
+sns.regplot(x= input_df['Redpoint'], y=pd.get_dummies(input_df['max_grade_combined'])['High'], logistic= True)
+sns.regplot(x= input_df['Onsight'], y=pd.get_dummies(input_df['max_grade_combined'])['High'], logistic= True)
+sns.regplot(x= input_df['Flash'], y=pd.get_dummies(input_df['max_grade_combined'])['High'], logistic= True)
+
+#indepdence
+
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 42)
 
 
@@ -389,7 +445,6 @@ for mean, stdev, param in zip(means, stds, params):
     
 #svm hyperparamter tuning
 from sklearn.svm import SVC
-from sklearn.ensemble import GradientBoostingClassifier
 
 
 model = SVC()
@@ -439,20 +494,6 @@ for i,v in enumerate(importance):
 pyplot.bar([x for x in range(len(importance))], importance)
 pyplot.show()
 
-#check assumptions
-
-# linearity
-#check for each variable combination
-#gre = sns.regplot(x= 'gre', y= 'admit', data= df, logistic= True).set_title("GRE Log Odds Linear Plot")
-
-#outliers
-#describe()
-#gpa_rank_box = sns.boxplot(data= df[['gpa', 'rank']]).set_title("GPA and Rank Box Plot")
-
-#independence
-
-#multicollineraity 
-#df.corr() #visualize as heatmap
 
 #check pca before model
 
