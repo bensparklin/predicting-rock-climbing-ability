@@ -14,20 +14,13 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import pyplot
-
 import seaborn as sns
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import r2_score
-from sklearn.metrics import mean_squared_error
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.linear_model import LinearRegressionfrom 
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.ensemble import RandomForestClassifier
-
-
+import xgboost as xgb
 
 
 
@@ -50,29 +43,41 @@ ascents.head(10)
 #ascents data types
 ascents.dtypes
 
-#ascnts info
-ascents.info
-
 #ascents shape - (4111877, 28)
 ascents.shape
 
-#mean,mean,min max for each column
-ascents.describe() 
+#ascnts info
+ascents.info
 
-#exploring the user data - first 10 rows
+
+#exploring the user data 
 user.head(10)
-
-#user data types
-user.dtypes
-
-#user info
-user.info
 
 #user shape - (62593, 23)
 user.shape
 
-#mean,mean,min max for each column
-user.describe() 
+#user data types
+user.dtypes
+
+#exploring the grade data
+grades.head(10)
+
+#grade shape - (83, 14)
+grades.shape
+
+#grade data types
+grades.dtypes
+
+#exploring the grade data
+method.head(10)
+
+#grade shape - (83, 14)
+method.shape
+
+#grade data types
+method.dtypes
+
+
 
 #clean the data
 
@@ -329,10 +334,6 @@ plt.scatter(no_duplicate_users['Onsight'], no_duplicate_users['Redpoint'], alpha
 plt.scatter(no_duplicate_users['Onsight'], no_duplicate_users['Flash'], alpha=0.5)
 
 
-
-
-
-
 corr_matrix = np.corrcoef(no_duplicate_users['ascents_max_grade'], no_duplicate_users['Redpoint'])
 corr = corr_matrix[0,1]
 R_sq = corr**2
@@ -349,6 +350,7 @@ y= input_df['max_grade_combined']
 x
 y
 
+
 #pca
 from sklearn.decomposition import PCA
 pca = PCA(n_components=2)
@@ -364,14 +366,13 @@ sns.scatterplot(
     palette=sns.color_palette("hls", 10),
     data=principal_df,
     legend="full",
-    alpha=0.99
+    alpha=0.85
 )
 
 #check assumptions
 
 
-#check features for multicollineraity 
- #visualize as heatmap
+#check features for multicollineraity using pearson's correlation
 corr = x.corr()
 # plot the heatmap
 sns.heatmap(corr, 
@@ -494,8 +495,6 @@ for i,v in enumerate(importance):
 pyplot.bar([x for x in range(len(importance))], importance)
 pyplot.show()
 
-
-#check pca before model
 
 #flash - completed on first try but have seen others do it or were told how to do it
 
