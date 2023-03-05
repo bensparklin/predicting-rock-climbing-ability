@@ -13,16 +13,13 @@ Created on Fri Dec  2 14:31:17 2022
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib import pyplot
 import seaborn as sns
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.ensemble import RandomForestClassifier
-import xgboost as xgb
-
-
+from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV
 
 pd.set_option('display.max_rows', 100)
 pd.set_option('display.max_columns', 10)
@@ -76,7 +73,6 @@ method.shape
 
 #grade data types
 method.dtypes
-
 
 
 #clean the data
@@ -291,6 +287,12 @@ ascent_type_sums = user_ascent_grade_method.pivot_table(
 
 user_ascent_grade_method = pd.merge(user_ascent_grade_method, ascent_type_sums, on='user_id')
 
+#flash - completed on first try but have seen others do it or were told how to do it
+
+#redpoint - completed climb after having practiced the route
+
+#onsight - completed first try without seeing any else do it or being told how to do it
+
 user_ascent_grade_method[user_ascent_grade_method['user_id'] == 3][['user_id', 'ascents_max_grade', 'Redpoint', 'Onsight', 'Flash']]
 
 #what countries are the climbers from?
@@ -319,29 +321,11 @@ max_grade_summary.index.name = 'max_grade_combined'
 max_grade_summary.reset_index(inplace=True)
 max_grade_summary.set_index('max_grade_combined').plot(kind='bar',xlabel='Max Grade', ylabel='Number of climbers', color='skyblue', edgecolor='k' )
 
-
 no_duplicate_users.dtypes
-plt.scatter(no_duplicate_users['bmi'], no_duplicate_users['max_grade'], alpha=0.5)
-plt.scatter(no_duplicate_users['bmi'], no_duplicate_users['years_exp_max_grade'], alpha=0.5)
-plt.scatter(no_duplicate_users['years_exp_max_grade'], no_duplicate_users['ascent_age'], alpha=0.5)
-plt.scatter(no_duplicate_users['age_max_grade'], no_duplicate_users['bmi'], alpha=0.5)
-plt.scatter(no_duplicate_users['age_max_grade'], no_duplicate_users['years_exp_max_grade'], alpha=0.5)
-plt.scatter(no_duplicate_users['ascents_max_grade'], no_duplicate_users['Redpoint'], alpha=0.5)
-plt.scatter(no_duplicate_users['ascents_max_grade'], no_duplicate_users['Onsight'], alpha=0.5)
-plt.scatter(no_duplicate_users['ascents_max_grade'], no_duplicate_users['Flash'], alpha=0.5)
-plt.scatter(no_duplicate_users['Flash'], no_duplicate_users['Redpoint'], alpha=0.5)
-plt.scatter(no_duplicate_users['Onsight'], no_duplicate_users['Redpoint'], alpha=0.5)
-plt.scatter(no_duplicate_users['Onsight'], no_duplicate_users['Flash'], alpha=0.5)
-
-
-corr_matrix = np.corrcoef(no_duplicate_users['ascents_max_grade'], no_duplicate_users['Redpoint'])
-corr = corr_matrix[0,1]
-R_sq = corr**2
 
 
 #predict the maximum boulder grade one can complete based on sex, years of experience, bmi, number of logged ascents, and progression time per grade? 
 input_df = no_duplicate_users[['id_user', 'sex', 'bmi', 'years_exp_max_grade', 'age_max_grade', 'Redpoint', 'Onsight','Flash', 'max_grade_combined']]
-
 
 input_df.head(10)
 
@@ -383,6 +367,7 @@ sns.scatterplot(
 #linearity
 #outliers
 #indepdence 
+#binary outcome variable
 
 
 #check features for multicollineraity using pearson's correlation
@@ -392,9 +377,7 @@ sns.heatmap(corr,
         xticklabels=corr.columns,
         yticklabels=corr.columns, annot=True)
 
-#redpoint and flash have a high correlation, so I will drop this redpoint as
-#flash could be a more informative feature
-x = x.drop('Redpoint', axis=1)
+#redpoint and flash have a high correlation
 
 #logistic regression also assumes features are indepdent of one another. In this dataset, the
 #features do not come from repeated mesaruremtns of the same feature over time, and they are indeodent of one another 
@@ -420,24 +403,13 @@ sns.boxplot(data= x[['Onsight', 'Flash']])
 #skewed toward higher values. Logistic regression is sensitive to outliers and
 #is not the best algorithm for this analysis
 
-#instead, I will try svm and random forest since they ar more robust to outliers
+#instead, I will try svm and random forest since they are more robust to outliers, even though
+#they are at the expense of feature explainability
 
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 42)
 
-
-
 #model = svm.SVC()
 #model=RandomForestClassifier()
-
-from sklearn.preprocessing import StandardScaler
-from sklearn import svm
-from sklearn.model_selection import GridSearchCV
-
-
-scaler = StandardScaler()
-scaler.fit(x)
-scaler.transform(x)
-
 
 cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
 n_scores = cross_val_score(model, x, y, scoring='accuracy', cv=cv)
@@ -445,9 +417,6 @@ print('Mean Accuracy: %.3f (%.3f)' % (np.mean(n_scores), np.std(n_scores)))
 
     
 #svm hyperparamter tuning
-from sklearn.svm import SVC
-
-
 model = SVC()
 kernel = ['poly', 'rbf', 'sigmoid']
 C = [50, 10, 1.0, 0.1, 0.01]
@@ -456,7 +425,7 @@ gamma = ['scale']
 grid = dict(kernel=kernel,C=C,gamma=gamma)
 cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
 grid_search = GridSearchCV(estimator=model, param_grid=grid, cv=cv, scoring='accuracy',error_score=0)
-grid_result_svm = grid_search.fit(scaler.transform(x), y)
+grid_result_svm = grid_search.fit(x, y)
 # summarize results
 print("Best: %f using %s" % (grid_result_svm.best_score_, grid_result_svm.best_params_))
 means = grid_result_svm.cv_results_['mean_test_score']
@@ -474,32 +443,23 @@ max_features = ['sqrt', 'log2']
 grid = dict(n_estimators=n_estimators,max_features=max_features)
 cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
 grid_search = GridSearchCV(estimator=model, param_grid=grid, cv=cv, scoring='accuracy',error_score=0)
-grid_result = grid_search.fit(x, y)
+grid_result_rf = grid_search.fit(x, y)
 #summarize results
-print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
-means = grid_result.cv_results_['mean_test_score']
-stds = grid_result.cv_results_['std_test_score']
-params = grid_result.cv_results_['params']
+print("Best: %f using %s" % (grid_result_rf.best_score_, grid_result_rf.best_params_))
+means = grid_result_rf.cv_results_['mean_test_score']
+stds = grid_result_rf.cv_results_['std_test_score']
+params = grid_result_rf.cv_results_['params']
 for mean, stdev, param in zip(means, stds, params):
     print("%f (%f) with: %r" % (mean, stdev, param))
 
-
 #feature importance
-model.fit(x, y)
-# get importance
-importance = model.coef_[0]
-# summarize feature importance
-for i,v in enumerate(importance):
- print('Feature: %0d, Score: %.5f' % (i,v))
-# plot feature importance
-pyplot.bar([x for x in range(len(importance))], importance)
-pyplot.show()
+feature_names = list(x.columns)
 
+model.fit(x_train, y_train)
+importances = model.feature_importances_
+forest_importances = pd.Series(importances, index=feature_names)
+std = np.std([tree.feature_importances_ for tree in model.estimators_], axis=0)
+forest_importances.plot(kind='bar', yerr=std, ylabel='Mean decrease in impurity')
 
-#flash - completed on first try but have seen others do it or were told how to do it
-
-#redpoint - completed climb after having practiced the route
-
-#onsight - completed first try without seeing any else do it or being told how to do it
 
 
