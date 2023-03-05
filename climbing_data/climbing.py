@@ -345,8 +345,13 @@ input_df = no_duplicate_users[['id_user', 'sex', 'bmi', 'years_exp_max_grade', '
 
 input_df.head(10)
 
+#convert outcome category to indicator variable
+#High = 1
+#Low =0 
+input_df['max_grade_outcome'] = pd.get_dummies(input_df['max_grade_combined'])['High']
+
 x =input_df[['sex', 'bmi', 'years_exp_max_grade', 'age_max_grade', 'Redpoint', 'Onsight','Flash']]
-y= input_df['max_grade_combined']
+y= input_df['max_grade_outcome']
 x
 y
 
@@ -358,18 +363,26 @@ principalComponents = pca.fit_transform(x)
 
 principal_df = pd.DataFrame(data = principalComponents
              , columns = ['principal component 1', 'principal component 2'])
-principal_df['max_grade_combined'] = y
+principal_df['max_grade'] = input_df['max_grade_combined']
 
 sns.scatterplot(
     x="principal component 1", y="principal component 2",
-    hue="max_grade_combined",
-    palette=sns.color_palette("hls", 10),
+    hue="max_grade",
+    palette=sns.color_palette("hls", 2),
     data=principal_df,
     legend="full",
     alpha=0.85
 )
 
+
+#logistic regression provides explainable outcomes, so I will check if this algorithm is suitable
+
 #check assumptions
+
+#multicollinearity
+#linearity
+#outliers
+#indepdence 
 
 
 #check features for multicollineraity using pearson's correlation
@@ -379,36 +392,40 @@ sns.heatmap(corr,
         xticklabels=corr.columns,
         yticklabels=corr.columns, annot=True)
 
-#redpoint and flash have the strongest correlation
-plt.scatter(no_duplicate_users['Flash'], no_duplicate_users['Redpoint'], alpha=0.5)
-#next highest is age and years exp
-plt.scatter(no_duplicate_users['age_max_grade'], no_duplicate_users['years_exp_max_grade'], alpha=0.5)
+#redpoint and flash have a high correlation, so I will drop this redpoint as
+#flash could be a more informative feature
+x = x.drop('Redpoint', axis=1)
 
+#logistic regression also assumes features are indepdent of one another. In this dataset, the
+#features do not come from repeated mesaruremtns of the same feature over time, and they are indeodent of one another 
+
+#Logistic regression assumes the relationship between each ontinuousu feature
+#and the logit of the outcome variable
+#while most of the features appear to meet this assumption, the number of flashes
+#looks a little off. I will continue to test the other fewatures to see if logistic regression
+#is appropriatie 
+
+sns.regplot(x= input_df['age_max_grade'], y=input_df['max_grade_outcome'], logistic= True)
+sns.regplot(x= input_df['years_exp_max_grade'], y=input_df['max_grade_outcome'], logistic= True)
+sns.regplot(x= input_df['bmi'], y=input_df['max_grade_outcome'], logistic= True)
+sns.regplot(x= input_df['Onsight'], y=input_df['max_grade_outcome'], logistic= True)
+sns.regplot(x= input_df['Flash'], y=input_df['max_grade_outcome'], logistic= True)
+sns.regplot(x= input_df['Flash'], y=input_df['max_grade_outcome'], logistic= True)
 
 #outliers
 sns.boxplot(data= x['bmi'])
 sns.boxplot(data= x[['years_exp_max_grade', 'age_max_grade']])
-sns.boxplot(data= x[['Redpoint', 'Onsight', 'Flash']])
+sns.boxplot(data= x[['Onsight', 'Flash']])
+#there are quite a few outliers across all of the categories with many of the features
+#skewed toward higher values. Logistic regression is sensitive to outliers and
+#is not the best algorithm for this analysis
 
-x['Redpoint'].describe()
-
-# linearity
-#check for each variable combination
-
-sns.regplot(x= input_df['bmi'], y=pd.get_dummies(input_df['max_grade_combined'])['High'], logistic= True)
-sns.regplot(x= input_df['age_max_grade'], y=pd.get_dummies(input_df['max_grade_combined'])['High'], logistic= True)
-sns.regplot(x= input_df['years_exp_max_grade'], y=pd.get_dummies(input_df['max_grade_combined'])['High'], logistic= True)
-sns.regplot(x= input_df['sex'], y=pd.get_dummies(input_df['max_grade_combined'])['High'], logistic= True)
-sns.regplot(x= input_df['Redpoint'], y=pd.get_dummies(input_df['max_grade_combined'])['High'], logistic= True)
-sns.regplot(x= input_df['Onsight'], y=pd.get_dummies(input_df['max_grade_combined'])['High'], logistic= True)
-sns.regplot(x= input_df['Flash'], y=pd.get_dummies(input_df['max_grade_combined'])['High'], logistic= True)
-
-#indepdence
+#instead, I will try svm and random forest since they ar more robust to outliers
 
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 42)
 
 
-model = LogisticRegression(solver='lbfgs')
+
 #model = svm.SVC()
 #model=RandomForestClassifier()
 
@@ -426,23 +443,6 @@ cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
 n_scores = cross_val_score(model, x, y, scoring='accuracy', cv=cv)
 print('Mean Accuracy: %.3f (%.3f)' % (np.mean(n_scores), np.std(n_scores)))
 
-
-#logistic regressionhyperparamter tuning
-solvers = ['newton-cg', 'lbfgs', 'liblinear']
-penalty = ['l2']
-c_values = [100, 10, 1.0, 0.1, 0.01]
-# define grid search
-grid = dict(solver=solvers,penalty=penalty,C=c_values)
-cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
-grid_search = GridSearchCV(estimator=model, param_grid=grid, cv=cv, scoring='accuracy',error_score=0)
-grid_result = grid_search.fit(x, y)
-# summarize results
-print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
-means = grid_result.cv_results_['mean_test_score']
-stds = grid_result.cv_results_['std_test_score']
-params = grid_result.cv_results_['params']
-for mean, stdev, param in zip(means, stds, params):
-    print("%f (%f) with: %r" % (mean, stdev, param))
     
 #svm hyperparamter tuning
 from sklearn.svm import SVC
