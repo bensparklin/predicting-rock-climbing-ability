@@ -14,12 +14,21 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.model_selection import cross_val_score
+
+from sklearn.metrics import ConfusionMatrixDisplay
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import recall_score
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import precision_score
+
+from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import RepeatedStratifiedKFold
+
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
-from sklearn.model_selection import GridSearchCV
+from xgboost import XGBClassifier
+from xgboost import plot_importance
 
 pd.set_option('display.max_rows', 100)
 pd.set_option('display.max_columns', 10)
@@ -405,16 +414,6 @@ sns.boxplot(data= x[['Onsight', 'Flash']])
 
 #instead, I will try svm and random forest since they are more robust to outliers, even though
 #they are at the expense of feature explainability
-
-x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 42)
-
-#model = svm.SVC()
-#model=RandomForestClassifier()
-
-cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
-n_scores = cross_val_score(model, x, y, scoring='accuracy', cv=cv)
-print('Mean Accuracy: %.3f (%.3f)' % (np.mean(n_scores), np.std(n_scores)))
-
     
 #svm hyperparamter tuning
 model = SVC()
@@ -431,6 +430,25 @@ print("Best: %f using %s" % (grid_result_svm.best_score_, grid_result_svm.best_p
 means = grid_result_svm.cv_results_['mean_test_score']
 stds = grid_result_svm.cv_results_['std_test_score']
 params = grid_result_svm.cv_results_['params']
+for mean, stdev, param in zip(means, stds, params):
+    print("%f (%f) with: %r" % (mean, stdev, param))
+    
+#xgboost   
+model = XGBClassifier()
+n_estimators = [10, 100, 1000]
+learning_rate = [0.001, 0.01, 0.1]
+subsample = [0.5, 0.7, 1.0]
+max_depth = [3, 7, 9]
+# define grid search
+grid = dict(learning_rate=learning_rate, n_estimators=n_estimators, subsample=subsample, max_depth=max_depth)
+cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+grid_search = GridSearchCV(estimator=model, param_grid=grid, cv=cv, scoring='accuracy',error_score=0)
+grid_result_xgb = grid_search.fit(x, y)
+# summarize results
+print("Best: %f using %s" % (grid_result_xgb.best_score_, grid_result_xgb.best_params_))
+means = grid_result_xgb.cv_results_['mean_test_score']
+stds = grid_result_xgb.cv_results_['std_test_score']
+params = grid_result_xgb.cv_results_['params']
 for mean, stdev, param in zip(means, stds, params):
     print("%f (%f) with: %r" % (mean, stdev, param))
 
@@ -452,14 +470,46 @@ params = grid_result_rf.cv_results_['params']
 for mean, stdev, param in zip(means, stds, params):
     print("%f (%f) with: %r" % (mean, stdev, param))
 
+#visualize model performance across algorithms
+svm_accuracy = pd.DataFrame(grid_result_svm.cv_results_['mean_test_score'])
+svm_accuracy['algorithm'] = 'SVM'
+
+xgb_accuracy = pd.DataFrame(grid_result_xgb.cv_results_['mean_test_score'])
+xgb_accuracy['algorithm'] = 'XGB'
+
+rf_accuracy = pd.DataFrame(grid_result_rf.cv_results_['mean_test_score'])
+rf_accuracy['algorithm'] = 'RF'
+
+accuracy_comparison = pd.concat([svm_accuracy, xgb_accuracy, rf_accuracy])
+accuracy_comparison = accuracy_comparison.rename(columns={accuracy_comparison.columns[0]: 'accuracy'})
+
+accuracy_comparison.sort_values('accuracy', ascending=False).head(10)
+
+sns.boxplot(data= accuracy_comparison, x='algorithm', y='accuracy')
+sns.stripplot(data= accuracy_comparison, x='algorithm', y='accuracy', color='black',  alpha = 0.6)
+
+#define model with best parameters
+print(grid_result_xgb.best_params_)
+best_xgb_model = grid_result_xgb.best_estimator_
+
+
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 42)
+
 #feature importance
-feature_names = list(x.columns)
+best_xgb_model.fit(x_train, y_train)
+plot_importance(best_xgb_model)
 
-model.fit(x_train, y_train)
-importances = model.feature_importances_
-forest_importances = pd.Series(importances, index=feature_names)
-std = np.std([tree.feature_importances_ for tree in model.estimators_], axis=0)
-forest_importances.plot(kind='bar', yerr=std, ylabel='Mean decrease in impurity')
+# Generate predictions with the best model
+y_pred = best_xgb_model.predict(x_test)
 
+# Create the confusion matrix
+cm = confusion_matrix(y_test, y_pred)
+ConfusionMatrixDisplay(confusion_matrix=cm).plot()
 
+accuracy = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred)
+recall = recall_score(y_test, y_pred)
 
+print("Accuracy:", accuracy)
+print("Precision:", precision)
+print("Recall:", recall)
