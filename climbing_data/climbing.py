@@ -150,7 +150,7 @@ ascents_bouldering = ascents.loc[ascents['climb_type'] == 1]
 #merge users and ascents
 user_ascent = pd.merge(user_clean, ascents_bouldering, 
                        left_on='id', right_on='user_id', how='inner', 
-                       suffixes=("_user", "_ascents"))
+                       suffixes=('_user', '_ascents'))
 
 user_ascent.dtypes
 user_ascent['id_user'].nunique()
@@ -158,7 +158,9 @@ user_ascent['id_ascents'].nunique()
 #after merging we have 9469 users with 739554 climbs
 
 #number of logged ascents per user
-user_ascent['ascent_count'] = user_ascent.groupby('id_user')['id_user'].transform('count')
+user_ascent['ascent_count'] = user_ascent.groupby(
+    'id_user')['id_user'].transform('count')
+
 plt.hist(user_ascent['ascent_count'])
 
 #age at climb = ascent date - birth date date,this will be different at
@@ -178,9 +180,14 @@ user_ascent['ascent_age'].describe()
 
 #several climbers completed climbs before they were born, 
 #so I will remove any rows where ascent age is less than 5
-user_ascent[['id_user','birth_year', 'year', 'ascent_age']].sort_values('ascent_age')
+user_ascent[['id_user','birth_year', 
+             'year', 'ascent_age']].sort_values('ascent_age')
+
 user_ascent = user_ascent[user_ascent['ascent_age'] > 5]
-user_ascent[['id_user','birth_year', 'year', 'ascent_age']].sort_values('ascent_age')
+
+user_ascent[['id_user','birth_year', 
+             'year', 'ascent_age']].sort_values('ascent_age')
+
 plt.hist(user_ascent['ascent_age'])
 
 
@@ -199,13 +206,15 @@ user_ascent['years_exp'].describe()
 plt.hist(user_ascent['years_exp'])
 
 #remove users where years of experience are greater than ascent age
-user_ascent[['id_user','birth_year', 'year', 'ascent_age', 'years_exp']].sort_values('ascent_age')
+user_ascent[['id_user','birth_year', 'year', 
+             'ascent_age', 'years_exp']].sort_values('ascent_age')
 user_ascent = user_ascent[user_ascent['years_exp'] < user_ascent['ascent_age']]
 
 
 #merge in grades based on grade id from grades
-user_ascent_grade = pd.merge(user_ascent, grades[['id', 'usa_boulders']], left_on='grade_id',
-                             right_on='id', how='inner', suffixes=('_ascents', '_grades'))
+user_ascent_grade = pd.merge(user_ascent, grades[['id', 'usa_boulders']], 
+                             left_on='grade_id', right_on='id', how='inner', 
+                             suffixes=('_ascents', '_grades'))
 
 user_ascent_grade[['user_id', 'id_ascents', 'id', 'usa_boulders']].head(50)
 user_ascent_grade.dtypes
@@ -213,7 +222,8 @@ user_ascent_grade.dtypes
 #merge in methods based on method id from methods
 user_ascent_grade_method = pd.merge(user_ascent_grade, 
                                     method[['id', 'name']], left_on='method_id',
-                                    right_on='id', how='inner', suffixes=('_grades','_methods'))
+                                    right_on='id', how='inner', 
+                                    suffixes=('_grades','_methods'))
 
 #check results of merge
 user_ascent_grade_method[['user_id', 'id_ascents', 'id_grades', 'usa_boulders',
@@ -263,15 +273,20 @@ methods_summary
 methods_summary.plot(kind='bar')
 
 #toprope is not supposed to be in the section of boulders, so I will remove it
-user_ascent_grade_method = user_ascent_grade_method[user_ascent_grade_method['name_methods'].isin(['Flash', 'Onsight', 'Redpoint'])]
+user_ascent_grade_method = user_ascent_grade_method[user_ascent_grade_method['name_methods'].isin(
+    ['Flash', 'Onsight', 'Redpoint'])]
+
 methods_summary = user_ascent_grade_method.groupby('name_methods').size()
 methods_summary
 
 #identify max grade completed per user
-user_ascent_grade_method['max_grade'] = user_ascent_grade_method['usa_boulders_numeric'].groupby(user_ascent_grade_method['id_user']).transform('max')
+user_ascent_grade_method['max_grade'] = user_ascent_grade_method['usa_boulders_numeric'].groupby(
+    user_ascent_grade_method['id_user']).transform('max')
 
 #Create column with date of first max grade ascent
-user_ascent_grade_method['max_grade_date']=user_ascent_grade_method.sort_values(by=['usa_boulders_numeric', 'year'],ascending=[False, True]).groupby('id_user')['year'].transform('first')
+user_ascent_grade_method['max_grade_date']=user_ascent_grade_method.sort_values(
+    by=['usa_boulders_numeric', 'year'],ascending=[False, True]).groupby(
+        'id_user')['year'].transform('first')
 
 #Remove any ascents that were completed after the max grade date 
 user_ascent_grade_method = user_ascent_grade_method[user_ascent_grade_method['year'] <= user_ascent_grade_method['max_grade_date']]
@@ -279,13 +294,18 @@ user_ascent_grade_method = user_ascent_grade_method[user_ascent_grade_method['ye
 
 #identify years of exp when climber completed the max grade
 #if there is a tie for a user by max grade, select the ascent that was completed first
-user_ascent_grade_method['years_exp_max_grade']=user_ascent_grade_method.sort_values(by=['usa_boulders_numeric', 'year'],ascending=[False, True]).groupby('id_user')['years_exp'].transform('first')
+user_ascent_grade_method['years_exp_max_grade']=user_ascent_grade_method.sort_values(
+    by=['usa_boulders_numeric', 'year'],ascending=[False, True]).groupby(
+        'id_user')['years_exp'].transform('first')
 
 ##identify age when climber completed the max grade
-user_ascent_grade_method['age_max_grade']=user_ascent_grade_method.sort_values(by=['usa_boulders_numeric', 'year'],ascending=[False, True]).groupby('id_user')['ascent_age'].transform('first')
+user_ascent_grade_method['age_max_grade']=user_ascent_grade_method.sort_values(
+    by=['usa_boulders_numeric', 'year'],ascending=[False, True]).groupby(
+        'id_user')['ascent_age'].transform('first')
 
 #check number ascents at time max grade was completed
-user_ascent_grade_method['ascents_max_grade'] = user_ascent_grade_method.groupby('id_user')['id_user'].transform('count')
+user_ascent_grade_method['ascents_max_grade'] = user_ascent_grade_method.groupby(
+    'id_user')['id_user'].transform('count')
 
 #pivot table to find number of redpoints, flashes, and onsights
 user_ascent_grade_method['ascent_count'] = 1
@@ -305,7 +325,9 @@ user_ascent_grade_method = pd.merge(user_ascent_grade_method, ascent_type_sums, 
 user_ascent_grade_method[user_ascent_grade_method['user_id'] == 3][['user_id', 'ascents_max_grade', 'Redpoint', 'Onsight', 'Flash']]
 
 #what countries are the climbers from?
-countries =  pd.DataFrame(user_ascent_grade_method.drop_duplicates(subset=['id_user']).groupby('country_user').size())
+countries =  pd.DataFrame(user_ascent_grade_method.drop_duplicates(
+    subset=['id_user']).groupby('country_user').size())
+
 #move rownames into column 
 countries.index.name = 'country_user'
 countries.reset_index(inplace=True)
@@ -313,7 +335,9 @@ countries.reset_index(inplace=True)
 countries = countries.rename(columns={countries.columns[1]: 'number_of_users'})
 
 #combine countries with less than 10 into "other" category
-countries['country_user'] = np.where(countries['number_of_users'] < 50, 'Other', countries['country_user'])
+countries['country_user'] = np.where(countries['number_of_users'] < 50, 
+                                     'Other', countries['country_user'])
+
 countries = countries.groupby('country_user')['number_of_users'].sum().sort_values(ascending=False)
 cmap = plt.cm.tab10
 colors = cmap(np.arange(len(countries)) % cmap.N)
@@ -324,26 +348,35 @@ no_duplicate_users = user_ascent_grade_method.drop_duplicates(subset=['id_user']
 
 #combine max greade into categories based on median
 np.median(no_duplicate_users['max_grade'])
-no_duplicate_users['max_grade_combined'] = np.where(no_duplicate_users['max_grade'].isin([-1,0,1,2,3,4,5,6,7,8]), 'Low', 'High')
+no_duplicate_users['max_grade_combined'] = np.where(
+    no_duplicate_users['max_grade'].isin([-1,0,1,2,3,4,5,6,7,8]), 'Low', 'High')
+
 max_grade_summary = pd.DataFrame(no_duplicate_users.groupby('max_grade_combined').size())
 max_grade_summary.index.name = 'max_grade_combined'
 max_grade_summary.reset_index(inplace=True)
-max_grade_summary.set_index('max_grade_combined').plot(kind='bar',xlabel='Max Grade', ylabel='Number of climbers', color='skyblue', edgecolor='k' )
+
+max_grade_summary.set_index('max_grade_combined').plot(
+    kind='bar',xlabel='Max Grade', ylabel='Number of climbers', 
+    color='skyblue', edgecolor='k' )
 
 no_duplicate_users.dtypes
 
 
 #predict the maximum boulder grade one can complete based on sex, years of experience, bmi, number of logged ascents, and progression time per grade? 
-input_df = no_duplicate_users[['id_user', 'sex', 'bmi', 'years_exp_max_grade', 'age_max_grade', 'Redpoint', 'Onsight','Flash', 'max_grade_combined']]
+input_df = no_duplicate_users[['id_user', 'sex', 'bmi', 'years_exp_max_grade', 
+                               'age_max_grade', 'Redpoint', 'Onsight','Flash', 
+                               'max_grade_combined']]
 
 input_df.head(10)
 
 #convert outcome category to indicator variable
 #High = 1
 #Low =0 
-input_df['max_grade_outcome'] = pd.get_dummies(input_df['max_grade_combined'])['High']
+input_df['max_grade_outcome'] = pd.get_dummies(
+    input_df['max_grade_combined'])['High']
 
-x =input_df[['sex', 'bmi', 'years_exp_max_grade', 'age_max_grade', 'Redpoint', 'Onsight','Flash']]
+x =input_df[['sex', 'bmi', 'years_exp_max_grade', 
+             'age_max_grade', 'Redpoint', 'Onsight','Flash']]
 y= input_df['max_grade_outcome']
 x
 y
