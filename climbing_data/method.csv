@@ -1,6 +1,3 @@
-"id","score","shorthand","name"
-1,0,"redpoint","Redpoint"
-2,53,"flash","Flash"
-3,145,"onsight","Onsight"
-4,-52,"toprope","Toprope"
-5,95,"onsight","Onsight"
+version https://git-lfs.github.com/spec/v1
+oid sha256:46b2b9f6063088e84034533f200904574309e49742213f127cd8050790a8b6f8
+size 156
