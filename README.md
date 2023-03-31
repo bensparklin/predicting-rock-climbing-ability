@@ -1,0 +1,2 @@
+# Predicting rock climbing ability
+In this project, I leverage a public rock climbing dataset collected from 8a.nu, a rock climbing community and logbook that rock climbers use to track their ascents (https://www.kaggle.com/dcohen21/8anu-climbing-logbook), to predict rock climbing ability. I clean the data, engineer features, tune hyperparameters, and fit a model to predict the maximum climbing route difficulty a rock climber can complete in this [notebook](climbing_data/climbing.ipynb).
